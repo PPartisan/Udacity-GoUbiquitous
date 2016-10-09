@@ -5,13 +5,10 @@ import android.os.Message;
 
 import java.lang.ref.WeakReference;
 
-/**
- * Created by tom on 09/10/16.
- */
 class EngineHandler extends Handler {
     private final WeakReference<SunshineWatchFace.Engine> mWeakReference;
 
-    public EngineHandler(SunshineWatchFace.Engine reference) {
+    EngineHandler(SunshineWatchFace.Engine reference) {
         mWeakReference = new WeakReference<>(reference);
     }
 

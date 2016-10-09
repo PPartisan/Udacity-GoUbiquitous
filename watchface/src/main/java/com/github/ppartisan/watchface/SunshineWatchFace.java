@@ -30,11 +30,14 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.graphics.Palette;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
 import android.view.SurfaceHolder;
 
+
+import com.github.ppartisan.watchface.watchhand.WatchHand;
 
 import java.util.Calendar;
 import java.util.TimeZone;
@@ -86,6 +89,8 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             }
         };
 
+        private final WatchHand.Factory mWatchHandFactory;
+
         private boolean mRegisteredTimeZoneReceiver = false;
         private boolean mMuteMode;
         private float mCenterX;
@@ -110,6 +115,10 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
         Engine(SunshineWatchFace sunshineWatchFace) {
             this.sunshineWatchFace = sunshineWatchFace;
+
+            final int primaryColor = ContextCompat.getColor(getApplicationContext(), R.color.primary);
+            mWatchHandFactory = new WatchHand.Factory(primaryColor);
+
         }
 
         @Override
