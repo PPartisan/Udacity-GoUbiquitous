@@ -4,7 +4,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 
-final class HourWatchHand implements WatchHand {
+final class HourWatchHand extends AbsWatchHand {
 
     static final String TAG = HourWatchHand.class.getSimpleName();
     private final Paint mPaint;
@@ -14,7 +14,7 @@ final class HourWatchHand implements WatchHand {
         mPaint.setColor(accentColor);
         mPaint.setStyle(Paint.Style.FILL);
         mPaint.setAntiAlias(true);
-        mPaint.setShadowLayer(SHADOW_RADIUS, 0, 0, Color.BLACK);
+        mPaint.setShadowLayer(SHADOW_RADIUS, 1, -1, Color.DKGRAY);
     }
 
     @Override

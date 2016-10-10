@@ -4,20 +4,18 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 
-final class AmbientMinuteWatchHand implements WatchHand {
+final class AmbientMinuteWatchHand extends AbsWatchHand {
 
     static final String TAG = AmbientMinuteWatchHand.class.getSimpleName();
 
     private final Paint mAmbientPaint;
 
     AmbientMinuteWatchHand() {
-
         mAmbientPaint = new Paint();
         mAmbientPaint.setColor(Color.WHITE);
         mAmbientPaint.setStyle(Paint.Style.STROKE);
         mAmbientPaint.setStrokeWidth(STROKE_WIDTH);
         mAmbientPaint.setAntiAlias(false);
-
     }
 
     @Override

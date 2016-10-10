@@ -208,7 +208,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             super.onAmbientModeChanged(inAmbientMode);
             mAmbient = inAmbientMode;
 
-            updateWatchHandStyle();
+            //updateWatchHandStyle();
 
             /* Check and trigger whether or not timer should be running (only in active mode). */
             updateTimer();
@@ -328,35 +328,12 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             if (mAmbient && (mLowBitAmbient || mBurnInProtection)) {
                 canvas.drawColor(Color.BLACK);
             } else if (mAmbient) {
-                canvas.drawBitmap(mGrayBackgroundBitmap, 0, 0, mBackgroundPaint);
+                //canvas.drawBitmap(mGrayBackgroundBitmap, 0, 0, mBackgroundPaint);
+                canvas.drawColor(Color.WHITE);
             } else {
-                canvas.drawBitmap(mBackgroundBitmap, 0, 0, mBackgroundPaint);
+                //canvas.drawBitmap(mBackgroundBitmap, 0, 0, mBackgroundPaint);
+                canvas.drawColor(Color.WHITE);
             }
-
-            /*
-             * Draw ticks. Usually you will want to bake this directly into the photo, but in
-             * cases where you want to allow users to select their own photos, this dynamically
-             * creates them on top of the photo.
-             */
-            float innerTickRadius = mCenterX - 10;
-            float outerTickRadius = mCenterX;
-            for (int tickIndex = 0; tickIndex < 12; tickIndex++) {
-                float tickRot = (float) (tickIndex * Math.PI * 2 / 12);
-                float innerX = (float) Math.sin(tickRot) * innerTickRadius;
-                float innerY = (float) -Math.cos(tickRot) * innerTickRadius;
-                float outerX = (float) Math.sin(tickRot) * outerTickRadius;
-                float outerY = (float) -Math.cos(tickRot) * outerTickRadius;
-                canvas.drawLine(mCenterX + innerX, mCenterY + innerY,
-                        mCenterX + outerX, mCenterY + outerY, mTickAndCirclePaint);
-            }
-
-            /*
-             * These calculations reflect the rotation in degrees per unit of time, e.g.,
-             * 360 / 60 = 6 and 360 / 12 = 30.
-             */
-            final float seconds =
-                    (mCalendar.get(Calendar.SECOND) + mCalendar.get(Calendar.MILLISECOND) / 1000f);
-            final float secondsRotation = seconds * 6f;
 
             final float minutesRotation = mCalendar.get(Calendar.MINUTE) * 6f;
 
@@ -369,40 +346,20 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             canvas.save();
 
             canvas.rotate(hoursRotation, mCenterX, mCenterY);
-            canvas.drawLine(
-                    mCenterX,
-                    mCenterY - CENTER_GAP_AND_CIRCLE_RADIUS,
-                    mCenterX,
-                    mCenterY - sHourHandLength,
-                    mHourPaint);
+
+            final WatchHand hourHand = (isInAmbientMode())
+                    ? mWatchHandFactory.getWatchHand(WatchHand.AMBIENT_HOUR)
+                    : mWatchHandFactory.getWatchHand(WatchHand.HOUR);
+
+            hourHand.drawWatchHand(canvas, bounds.centerX(), hourHand.getWatchHandRadius()*2);
 
             canvas.rotate(minutesRotation - hoursRotation, mCenterX, mCenterY);
-            canvas.drawLine(
-                    mCenterX,
-                    mCenterY - CENTER_GAP_AND_CIRCLE_RADIUS,
-                    mCenterX,
-                    mCenterY - sMinuteHandLength,
-                    mMinutePaint);
 
-            /*
-             * Ensure the "seconds" hand is drawn only when we are in interactive mode.
-             * Otherwise, we only update the watch face once a minute.
-             */
-            if (!mAmbient) {
-                canvas.rotate(secondsRotation - minutesRotation, mCenterX, mCenterY);
-                canvas.drawLine(
-                        mCenterX,
-                        mCenterY - CENTER_GAP_AND_CIRCLE_RADIUS,
-                        mCenterX,
-                        mCenterY - mSecondHandLength,
-                        mSecondPaint);
+            final WatchHand minuteHand = (isInAmbientMode())
+                    ? mWatchHandFactory.getWatchHand(WatchHand.AMBIENT_MINUTE)
+                    : mWatchHandFactory.getWatchHand(WatchHand.MINUTE);
 
-            }
-            canvas.drawCircle(
-                    mCenterX,
-                    mCenterY,
-                    CENTER_GAP_AND_CIRCLE_RADIUS,
-                    mTickAndCirclePaint);
+            minuteHand.drawWatchHand(canvas, bounds.centerX(), minuteHand.getWatchHandRadius() * 2);
 
             /* Restore the canvas' original orientation. */
             canvas.restore();

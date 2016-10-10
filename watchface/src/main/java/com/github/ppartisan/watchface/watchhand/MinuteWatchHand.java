@@ -4,7 +4,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 
-final class MinuteWatchHand implements WatchHand {
+final class MinuteWatchHand extends AbsWatchHand {
 
     static final String TAG = MinuteWatchHand.class.getSimpleName();
 
@@ -16,7 +16,7 @@ final class MinuteWatchHand implements WatchHand {
         mPaint.setStrokeWidth(STROKE_WIDTH);
         mPaint.setStyle(Paint.Style.STROKE);
         mPaint.setAntiAlias(true);
-        mPaint.setShadowLayer(SHADOW_RADIUS, 0, 0, Color.BLACK);
+        mPaint.setShadowLayer(SHADOW_RADIUS, 1, -1, Color.DKGRAY);
     }
 
     @Override

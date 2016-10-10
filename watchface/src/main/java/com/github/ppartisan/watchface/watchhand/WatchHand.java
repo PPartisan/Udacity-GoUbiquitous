@@ -18,11 +18,13 @@ public interface WatchHand {
     int HOUR = 500;
     int MINUTE = 501;
 
-    int SHADOW_RADIUS = 6;
+    int SHADOW_RADIUS = 2;
     int WATCH_HAND_RADIUS = 12;
     float STROKE_WIDTH = 2f;
 
     void drawWatchHand(Canvas canvas, float cx, float cy);
+    void setWatchHandRadius(int radius);
+    int getWatchHandRadius();
 
     class Factory {
 
