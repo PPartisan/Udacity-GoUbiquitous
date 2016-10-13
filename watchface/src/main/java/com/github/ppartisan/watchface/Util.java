@@ -9,6 +9,7 @@ import com.google.android.gms.wearable.Asset;
 import com.google.android.gms.wearable.Wearable;
 
 import java.io.InputStream;
+import java.util.concurrent.TimeUnit;
 
 final class Util {
 
@@ -17,7 +18,9 @@ final class Util {
     //ToDo must be called Async
     static Bitmap getBitmapFromAsset(GoogleApiClient client, @NonNull Asset asset) {
 
-        if(!client.isConnected()) return null;
+        client.blockingConnect(5, TimeUnit.SECONDS);
+
+        //if(!client.isConnected()) return null;
 
         InputStream inputStream =
                 Wearable.DataApi.getFdForAsset(client, asset).await().getInputStream();

@@ -95,15 +95,14 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
         private boolean mMuteMode;
         private float mCenterX;
         private float mCenterY;
-//        private Bitmap mBackgroundBitmap;
-//        private Bitmap mGrayBackgroundBitmap;
         private boolean mAmbient;
         private boolean mLowBitAmbient;
         private boolean mBurnInProtection;
 
-        private Paint mBackgroundPaint;
+        private Paint mBackgroundPaint, mTextPaint;
 
         private GoogleApiClient mGoogleApiClient;
+        private DataModel mDataModel;
 
         Engine(SunshineWatchFace sunshineWatchFace) {
             this.sunshineWatchFace = sunshineWatchFace;
@@ -120,11 +119,24 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
             setWatchFaceStyle(new WatchFaceStyle.Builder(sunshineWatchFace)
                     .setCardPeekMode(WatchFaceStyle.PEEK_MODE_SHORT)
                     .setBackgroundVisibility(WatchFaceStyle.BACKGROUND_VISIBILITY_INTERRUPTIVE)
+                    .setViewProtectionMode(
+                            WatchFaceStyle.PROTECT_STATUS_BAR |
+                            WatchFaceStyle.PROTECT_HOTWORD_INDICATOR
+                    )
                     .setShowSystemUiTime(false)
                     .build());
+
             mCalendar = Calendar.getInstance();
+
             mBackgroundPaint = new Paint();
             mBackgroundPaint.setColor(Color.BLACK);
+
+            final int primary = ContextCompat.getColor(SunshineWatchFace.this, R.color.primary);
+
+            mTextPaint = new Paint();
+            mTextPaint.setColor(primary);
+            mTextPaint.setTextSize(36);
+            mTextPaint.setAntiAlias(true);
 
             mGoogleApiClient = new GoogleApiClient.Builder(SunshineWatchFace.this)
                     .addApi(Wearable.API)
@@ -177,55 +189,9 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
         @Override
         public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
             super.onSurfaceChanged(holder, format, width, height);
-
-            /*
-             * Find the coordinates of the center point on the screen, and ignore the window
-             * insets, so that, on round watches with a "chin", the watch face is centered on the
-             * entire screen, not just the usable portion.
-             */
             mCenterX = width / 2f;
             mCenterY = height / 2f;
-
-            /*
-             * Calculate lengths of different hands based on watch screen size.
-             */
-
-
-            /* Scale loaded background image (more efficient) if surface dimensions change. */
-//            float scale = ((float) width) / (float) mBackgroundBitmap.getWidth();
-
-//            mBackgroundBitmap = Bitmap.createScaledBitmap(mBackgroundBitmap,
-//                    (int) (mBackgroundBitmap.getWidth() * scale),
-//                    (int) (mBackgroundBitmap.getHeight() * scale), true);
-
-            /*
-             * Create a gray version of the image only if it will look nice on the device in
-             * ambient mode. That means we don't want devices that support burn-in
-             * protection (slight movements in pixels, not great for images going all the way to
-             * edges) and low ambient mode (degrades image quality).
-             *
-             * Also, if your watch face will know about all images ahead of time (users aren't
-             * selecting their own photos for the watch face), it will be more
-             * efficient to create a black/white version (png, etc.) and load that when you need it.
-             */
-//            if (!mBurnInProtection && !mLowBitAmbient) {
-//                initGrayBackgroundBitmap();
-//            }
         }
-
-//        private void initGrayBackgroundBitmap() {
-//            mGrayBackgroundBitmap = Bitmap.createBitmap(
-//                    mBackgroundBitmap.getWidth(),
-//                    mBackgroundBitmap.getHeight(),
-//                    Bitmap.Config.ARGB_8888);
-//            Canvas canvas = new Canvas(mGrayBackgroundBitmap);
-//            Paint grayPaint = new Paint();
-//            ColorMatrix colorMatrix = new ColorMatrix();
-//            colorMatrix.setSaturation(0);
-//            ColorMatrixColorFilter filter = new ColorMatrixColorFilter(colorMatrix);
-//            grayPaint.setColorFilter(filter);
-//            canvas.drawBitmap(mBackgroundBitmap, 0, 0, grayPaint);
-//        }
 
         @Override
         public void onDraw(Canvas canvas, Rect bounds) {
@@ -234,7 +200,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
             mCalendar.setTimeInMillis(now);
 
             final int canvasColor =
-                    (mAmbient && (mLowBitAmbient || mBurnInProtection)) ? Color.BLACK : Color.WHITE;
+                    (mAmbient || mLowBitAmbient || mBurnInProtection) ? Color.BLACK : Color.WHITE;
             canvas.drawColor(canvasColor);
 
             final float minutesRotation = mCalendar.get(Calendar.MINUTE) * 6f;
@@ -265,6 +231,23 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
 
             /* Restore the canvas' original orientation. */
             canvas.restore();
+
+            if (!mAmbient && mDataModel != null && mDataModel.image != null) {
+                final int x = (int)(mCenterX - (mDataModel.image.getWidth()/2));
+                final int y = (int)(mCenterY - (mDataModel.image.getHeight()/1.667f));
+                canvas.drawBitmap(mDataModel.image, x, y, mBackgroundPaint);
+            }
+
+            if (!mAmbient && mDataModel != null) {
+                final String text =
+                        getString(R.string.max_min_temp_template, mDataModel.max, mDataModel.min);
+                final int x =
+                        (int)((canvas.getWidth()/2) - mTextPaint.measureText(text)/2);
+                final int y =
+                        (int) ((canvas.getHeight() / 1.33f) -
+                                ((mTextPaint.descent() + mTextPaint.ascent()))/2);
+                canvas.drawText(text, x, y, mTextPaint);
+            }
 
             /* Draw rectangle behind peek card in ambient mode to improve readability. */
             if (mAmbient) {
@@ -351,17 +334,17 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
         public void onDataChanged(DataEventBuffer dataEventBuffer) {
             for (DataEvent dataEvent : dataEventBuffer) {
                 if (dataEvent.getType() == DataEvent.TYPE_CHANGED) {
-                    DataModel model =
-                            DataModel.buildDataModelFromItem(mGoogleApiClient, dataEvent.getDataItem());
-                    Log.d(getClass().getSimpleName(), model.toString());
+                    mDataModel = DataModel.buildDataModelFromItem(
+                            mGoogleApiClient, dataEvent.getDataItem()
+                    );
+                    Log.d(getClass().getSimpleName(), mDataModel.toString());
                 }
             }
-
+            invalidate();
         }
 
         @Override
         public void onConnected(@Nullable Bundle bundle) {
-            Log.d(getClass().getSimpleName(), "onConnected");
             Wearable.DataApi.addListener(mGoogleApiClient, this);
             Wearable.DataApi.getDataItems(mGoogleApiClient).setResultCallback(onConnectedResultCallback);
         }
@@ -377,11 +360,12 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
                     @Override
                     public void onResult(@NonNull DataItemBuffer dataItems) {
                         for (DataItem item : dataItems) {
-                            DataModel model = DataModel.buildDataModelFromItem(mGoogleApiClient, item);
-                            Log.d(getClass().getSimpleName(), model.toString());
+                            mDataModel = DataModel.buildDataModelFromItem(mGoogleApiClient, item);
+                            Log.d(getClass().getSimpleName(), mDataModel.toString());
                         }
-
+                        invalidate();
                     }
                 };
     }
+
 }

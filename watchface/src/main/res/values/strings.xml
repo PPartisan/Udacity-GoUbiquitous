@@ -2,4 +2,7 @@
     <string name="app_name">Sunshine</string>
     <string name="message">Watch face tapped</string>
     <string name="my_analog_name">Sunshine</string>
+
+    <string name="max_min_temp_template">%1$d\u00B0 | %2$d\u00B0</string>
+
 </resources>
