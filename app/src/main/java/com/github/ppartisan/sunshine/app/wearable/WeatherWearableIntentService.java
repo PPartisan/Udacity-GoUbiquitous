@@ -71,10 +71,6 @@ public final class WeatherWearableIntentService extends IntentService {
                 putDataMapRequest.getDataMap().putInt(FORECAST_COLUMNS[1], Math.round(maxTemp));
                 putDataMapRequest.getDataMap().putInt(FORECAST_COLUMNS[2], Math.round(minTemp));
 
-                //Testing, to ensure each packet unique
-                putDataMapRequest.getDataMap().putLong("time", System.currentTimeMillis());
-                putDataMapRequest.setUrgent();
-
                 Wearable.DataApi.putDataItem(mGoogleApiClient, putDataMapRequest.asPutDataRequest());
 
             }

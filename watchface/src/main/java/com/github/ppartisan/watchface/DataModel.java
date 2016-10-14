@@ -21,8 +21,6 @@ final class DataModel {
     private static final String MAX_KEY = "max";
     private static final String MIN_KEY = "min";
     private static final String WEATHER_ID_KEY = "weather_id";
-    //ToDo; Debug only
-    private static final String TIME_KEY = "time";
 
     final int max, min;
     final Bitmap image;
