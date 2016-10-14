@@ -33,6 +33,7 @@ import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
 import android.util.Log;
 import android.view.SurfaceHolder;
+import android.view.WindowInsets;
 
 import com.github.ppartisan.watchface.watchhand.WatchHand;
 import com.github.ppartisan.watchface.watchticks.WatchTicks;
@@ -82,7 +83,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
         private final WatchTicks mWatchTicks;
 
         private boolean mRegisteredTimeZoneReceiver = false;
-        private boolean mMuteMode;
+        private boolean mIsRound = false;
         private float mCenterX;
         private float mCenterY;
 
@@ -99,6 +100,11 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
             mWatchTicks = new WatchTicks(SunshineWatchFace.this, null);
         }
 
+        /*
+        * Several method in WatchFaceStyle.Builder class show as deprecated, but no alternatives
+        * offered in documentation.
+        */
+        @SuppressWarnings("deprecation")
         @Override
         public void onCreate(SurfaceHolder holder) {
             super.onCreate(holder);
@@ -141,6 +147,12 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
         }
 
         @Override
+        public void onApplyWindowInsets(WindowInsets insets) {
+            super.onApplyWindowInsets(insets);
+            mIsRound = insets.isRound();
+        }
+
+        @Override
         public void onTimeTick() {
             super.onTimeTick();
             invalidate();
@@ -150,19 +162,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
         public void onAmbientModeChanged(boolean inAmbientMode) {
             super.onAmbientModeChanged(inAmbientMode);
             updateTimer();
-        }
-
-
-        @Override
-        public void onInterruptionFilterChanged(int interruptionFilter) {
-            super.onInterruptionFilterChanged(interruptionFilter);
-            boolean inMuteMode = (interruptionFilter == INTERRUPTION_FILTER_NONE);
-
-            /* Dim display in mute mode. */
-            if (mMuteMode != inMuteMode) {
-                mMuteMode = inMuteMode;
-                invalidate();
-            }
         }
 
         @Override
@@ -182,9 +181,11 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
             final int canvasColor = (isInAmbientMode()) ? Color.BLACK : Color.WHITE;
             canvas.drawColor(canvasColor);
 
-            final @WatchTicks.Mode int mode = (isInAmbientMode())
-                    ? WatchTicks.AMBIENT : WatchTicks.REGULAR;
-            mWatchTicks.drawTicks(canvas, mode);
+            if(!mIsRound || isInAmbientMode()) {
+                final @WatchTicks.Mode int mode = (isInAmbientMode())
+                        ? WatchTicks.AMBIENT : WatchTicks.REGULAR;
+                mWatchTicks.drawTicks(canvas, mode);
+            }
 
             final float minutesRotation = mCalendar.get(Calendar.MINUTE) * 6f;
 
@@ -231,7 +232,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
                 Wearable.DataApi.addListener(mGoogleApiClient, this);
                 mGoogleApiClient.connect();
                 registerReceiver();
-                /* Update time zone in case it changed while we weren't visible. */
                 mCalendar.setTimeZone(TimeZone.getDefault());
                 invalidate();
             } else {
@@ -239,11 +239,11 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
                 mGoogleApiClient.disconnect();
                 unregisterReceiver();
             }
-
-            /* Check and trigger whether or not timer should be running (only in active mode). */
             updateTimer();
+
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void onPeekCardPositionUpdate(Rect rect) {
             super.onPeekCardPositionUpdate(rect);
@@ -267,9 +267,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
             sunshineWatchFace.unregisterReceiver(mTimeZoneReceiver);
         }
 
-        /**
-         * Starts/stops the {@link #mUpdateTimeHandler} timer based on the state of the watch face.
-         */
         private void updateTimer() {
             mUpdateTimeHandler.removeMessages(MSG_UPDATE_TIME);
             if (shouldTimerBeRunning()) {
@@ -294,17 +291,10 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
             canvas.drawText(text, x, y, mTextPaint);
         }
 
-        /**
-         * Returns whether the {@link #mUpdateTimeHandler} timer should be running. The timer
-         * should only run in active mode.
-         */
         private boolean shouldTimerBeRunning() {
             return isVisible() && !isInAmbientMode();
         }
 
-        /**
-         * Handle updating the time periodically in interactive mode.
-         */
         void handleUpdateTimeMessage() {
             invalidate();
             if (shouldTimerBeRunning()) {

@@ -113,7 +113,7 @@ final class DataModel {
 
     private static class GetDataModelFromAssetAsync extends AsyncTask<DataMap, Void, DataModel> {
 
-        private final Callback mCallback;
+        private Callback mCallback;
         private final GoogleApiClient mClient;
 
         private GetDataModelFromAssetAsync(Callback callback, GoogleApiClient client) {
@@ -147,6 +147,7 @@ final class DataModel {
         @Override
         protected void onPostExecute(DataModel model) {
             mCallback.onDataModelReady(model);
+            mCallback = null;
         }
     }
 
