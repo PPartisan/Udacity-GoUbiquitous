@@ -35,6 +35,7 @@ import android.util.Log;
 import android.view.SurfaceHolder;
 
 import com.github.ppartisan.watchface.watchhand.WatchHand;
+import com.github.ppartisan.watchface.watchticks.WatchTicks;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResultCallback;
@@ -49,22 +50,10 @@ import java.util.Calendar;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Analog watch face with a ticking second hand. In ambient mode, the second hand isn't
- * shown. On devices with low-bit ambient mode, the hands are drawn without anti-aliasing in ambient
- * mode. The watch face is drawn with less contrast in mute mode.
- */
 public class SunshineWatchFace extends CanvasWatchFaceService  {
 
-    /*
-     * Update rate in milliseconds for interactive mode. We update once a minute to advance the
-     * minute hand.
-     */
+    //Only updates once per minute as there is no second counter
     static final long INTERACTIVE_UPDATE_RATE_MS = TimeUnit.MINUTES.toMillis(1);
-
-    /**
-     * Handler message id for updating the time periodically in interactive mode.
-     */
     static final int MSG_UPDATE_TIME = 0;
 
     @Override
@@ -73,11 +62,11 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
     }
 
     class Engine extends CanvasWatchFaceService.Engine implements DataApi.DataListener,
-            GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
+            GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener,
+            DataModel.Callback, ResultCallback<DataItemBuffer> {
 
         private SunshineWatchFace sunshineWatchFace;
         private final Rect mPeekCardBounds = new Rect();
-        /* Handler to update the time once a second in interactive mode. */
         private final Handler mUpdateTimeHandler = new EngineHandler(this);
         private Calendar mCalendar;
 
@@ -90,14 +79,12 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
         };
 
         private final WatchHand.Factory mWatchHandFactory;
+        private final WatchTicks mWatchTicks;
 
         private boolean mRegisteredTimeZoneReceiver = false;
         private boolean mMuteMode;
         private float mCenterX;
         private float mCenterY;
-        private boolean mAmbient;
-        private boolean mLowBitAmbient;
-        private boolean mBurnInProtection;
 
         private Paint mBackgroundPaint, mTextPaint;
 
@@ -109,7 +96,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
 
             final int primaryColor = ContextCompat.getColor(getApplicationContext(), R.color.primary);
             mWatchHandFactory = new WatchHand.Factory(primaryColor);
-
+            mWatchTicks = new WatchTicks(SunshineWatchFace.this, null);
         }
 
         @Override
@@ -121,7 +108,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
                     .setBackgroundVisibility(WatchFaceStyle.BACKGROUND_VISIBILITY_INTERRUPTIVE)
                     .setViewProtectionMode(
                             WatchFaceStyle.PROTECT_STATUS_BAR |
-                            WatchFaceStyle.PROTECT_HOTWORD_INDICATOR
+                                    WatchFaceStyle.PROTECT_HOTWORD_INDICATOR
                     )
                     .setShowSystemUiTime(false)
                     .build());
@@ -154,13 +141,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
         }
 
         @Override
-        public void onPropertiesChanged(Bundle properties) {
-            super.onPropertiesChanged(properties);
-            mLowBitAmbient = properties.getBoolean(PROPERTY_LOW_BIT_AMBIENT, false);
-            mBurnInProtection = properties.getBoolean(PROPERTY_BURN_IN_PROTECTION, false);
-        }
-
-        @Override
         public void onTimeTick() {
             super.onTimeTick();
             invalidate();
@@ -169,7 +149,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
         @Override
         public void onAmbientModeChanged(boolean inAmbientMode) {
             super.onAmbientModeChanged(inAmbientMode);
-            mAmbient = inAmbientMode;
             updateTimer();
         }
 
@@ -191,6 +170,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
             super.onSurfaceChanged(holder, format, width, height);
             mCenterX = width / 2f;
             mCenterY = height / 2f;
+            mWatchTicks.setCenterPoint(mCenterX, mCenterY);
         }
 
         @Override
@@ -199,18 +179,18 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
             long now = System.currentTimeMillis();
             mCalendar.setTimeInMillis(now);
 
-            final int canvasColor =
-                    (mAmbient || mLowBitAmbient || mBurnInProtection) ? Color.BLACK : Color.WHITE;
+            final int canvasColor = (isInAmbientMode()) ? Color.BLACK : Color.WHITE;
             canvas.drawColor(canvasColor);
+
+            final @WatchTicks.Mode int mode = (isInAmbientMode())
+                    ? WatchTicks.AMBIENT : WatchTicks.REGULAR;
+            mWatchTicks.drawTicks(canvas, mode);
 
             final float minutesRotation = mCalendar.get(Calendar.MINUTE) * 6f;
 
             final float hourHandOffset = mCalendar.get(Calendar.MINUTE) / 2f;
             final float hoursRotation = (mCalendar.get(Calendar.HOUR) * 30) + hourHandOffset;
 
-            /*
-             * Save the canvas state before we can begin to rotate it.
-             */
             canvas.save();
 
             canvas.rotate(hoursRotation, mCenterX, mCenterY);
@@ -229,30 +209,18 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
 
             minuteHand.drawWatchHand(canvas, bounds.centerX(), minuteHand.getWatchHandRadius() * 2);
 
-            /* Restore the canvas' original orientation. */
             canvas.restore();
 
-            if (!mAmbient && mDataModel != null && mDataModel.image != null) {
-                final int x = (int)(mCenterX - (mDataModel.image.getWidth()/2));
-                final int y = (int)(mCenterY - (mDataModel.image.getHeight()/1.667f));
-                canvas.drawBitmap(mDataModel.image, x, y, mBackgroundPaint);
-            }
-
-            if (!mAmbient && mDataModel != null) {
-                final String text =
-                        getString(R.string.max_min_temp_template, mDataModel.max, mDataModel.min);
-                final int x =
-                        (int)((canvas.getWidth()/2) - mTextPaint.measureText(text)/2);
-                final int y =
-                        (int) ((canvas.getHeight() / 1.33f) -
-                                ((mTextPaint.descent() + mTextPaint.ascent()))/2);
-                canvas.drawText(text, x, y, mTextPaint);
-            }
-
-            /* Draw rectangle behind peek card in ambient mode to improve readability. */
-            if (mAmbient) {
+            if (!isInAmbientMode()) {
                 canvas.drawRect(mPeekCardBounds, mBackgroundPaint);
+                if (mDataModel != null) {
+                    drawTemperatureText(canvas);
+                    if (mDataModel.image != null) {
+                        drawWeatherBitmap(canvas);
+                    }
+                }
             }
+
         }
 
         @Override
@@ -309,12 +277,29 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
             }
         }
 
+        private void drawWeatherBitmap(Canvas canvas) {
+            final int x = (int)(mCenterX - (mDataModel.image.getWidth()/2));
+            final int y = (int)(mCenterY - (mDataModel.image.getHeight()/1.667f));
+            canvas.drawBitmap(mDataModel.image, x, y, mBackgroundPaint);
+        }
+
+        private void drawTemperatureText(Canvas canvas) {
+            final String text =
+                    getString(R.string.max_min_temp_template, mDataModel.max, mDataModel.min);
+            final int x =
+                    (int)((canvas.getWidth()/2) - mTextPaint.measureText(text)/2);
+            final int y =
+                    (int) ((canvas.getHeight() / 1.33f) -
+                            ((mTextPaint.descent() + mTextPaint.ascent()))/2);
+            canvas.drawText(text, x, y, mTextPaint);
+        }
+
         /**
          * Returns whether the {@link #mUpdateTimeHandler} timer should be running. The timer
          * should only run in active mode.
          */
         private boolean shouldTimerBeRunning() {
-            return isVisible() && !mAmbient;
+            return isVisible() && !isInAmbientMode();
         }
 
         /**
@@ -334,19 +319,17 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
         public void onDataChanged(DataEventBuffer dataEventBuffer) {
             for (DataEvent dataEvent : dataEventBuffer) {
                 if (dataEvent.getType() == DataEvent.TYPE_CHANGED) {
-                    mDataModel = DataModel.buildDataModelFromItem(
-                            mGoogleApiClient, dataEvent.getDataItem()
+                    DataModel.fromItemAsync(
+                            Engine.this, mGoogleApiClient, dataEvent.getDataItem()
                     );
-                    Log.d(getClass().getSimpleName(), mDataModel.toString());
                 }
             }
-            invalidate();
         }
 
         @Override
         public void onConnected(@Nullable Bundle bundle) {
             Wearable.DataApi.addListener(mGoogleApiClient, this);
-            Wearable.DataApi.getDataItems(mGoogleApiClient).setResultCallback(onConnectedResultCallback);
+            Wearable.DataApi.getDataItems(mGoogleApiClient).setResultCallback(this);
         }
 
         @Override
@@ -355,17 +338,22 @@ public class SunshineWatchFace extends CanvasWatchFaceService  {
         @Override
         public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {}
 
-        private final ResultCallback<DataItemBuffer> onConnectedResultCallback =
-                new ResultCallback<DataItemBuffer>() {
-                    @Override
-                    public void onResult(@NonNull DataItemBuffer dataItems) {
-                        for (DataItem item : dataItems) {
-                            mDataModel = DataModel.buildDataModelFromItem(mGoogleApiClient, item);
-                            Log.d(getClass().getSimpleName(), mDataModel.toString());
-                        }
-                        invalidate();
-                    }
-                };
+        @Override
+        public void onDataModelReady(DataModel model) {
+            mDataModel = model;
+            Log.d(getClass().getSimpleName(), mDataModel.toString());
+            invalidate();
+        }
+
+        @Override
+        public void onResult(@NonNull DataItemBuffer dataItems) {
+            for (DataItem item : dataItems) {
+                DataModel.fromItemAsync(
+                        Engine.this, mGoogleApiClient, item
+                );
+            }
+        }
+
     }
 
 }

@@ -3,7 +3,6 @@ package com.github.ppartisan.watchface;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
-import android.os.Looper;
 import android.support.annotation.NonNull;
 
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -34,15 +33,24 @@ final class DataModel {
         this.image = image;
     }
 
-    /*
-     * Blocking - only use off UI thread.
+    /**
+     * Returns a model representation of data in {@link DataItem}.
+     * <p>
+     * This method may block the thread it is called on for a substantial amount of time, and as
+     * such should only be called from a background thread. See
+     * {@link #fromItemAsync(Callback, GoogleApiClient, DataItem)} to call this
+     * asynchronously with a {@link Callback}
+     *
+     * @param client A {@link GoogleApiClient}
+     * @param item {@link DataItem} containing {@link DataMap} with values corresponding to
+     *                             constant keys in DataModel.class
+     * @return New {@link DataModel}
+     *
+     * @see {@link #fromItemAsync(Callback, GoogleApiClient, DataItem)}
      */
+    @SuppressWarnings("unused")
     @NonNull
-    static DataModel buildDataModelFromItem(GoogleApiClient client, DataItem item) {
-
-        if(Looper.myLooper() == Looper.getMainLooper()) {
-            throw new RuntimeException("Method must be called off main thread");
-        }
+    static DataModel fromItem(GoogleApiClient client, DataItem item) {
 
         DataMap map = DataMapItem.fromDataItem(item).getDataMap();
 
@@ -60,6 +68,11 @@ final class DataModel {
 
         return new DataModel(max, min, weatherImage);
 
+    }
+
+    static void fromItemAsync(Callback callback, GoogleApiClient client, DataItem item) {
+        final DataMap map = DataMapItem.fromDataItem(item).getDataMap();
+        new GetDataModelFromAssetAsync(callback, client).execute(map);
     }
 
     @Override
@@ -91,9 +104,54 @@ final class DataModel {
 
             if (inputStream == null) return null;
 
+            mClient.disconnect();
+
             return BitmapFactory.decodeStream(inputStream);
         }
 
+    }
+
+    private static class GetDataModelFromAssetAsync extends AsyncTask<DataMap, Void, DataModel> {
+
+        private final Callback mCallback;
+        private final GoogleApiClient mClient;
+
+        private GetDataModelFromAssetAsync(Callback callback, GoogleApiClient client) {
+            mCallback = callback;
+            mClient = client;
+        }
+
+        @Override
+        protected DataModel doInBackground(DataMap... maps) {
+
+            final DataMap map = maps[0];
+
+            final int max = map.getInt(MAX_KEY);
+            final int min = map.getInt(MIN_KEY);
+            final Asset weatherAsset = map.getAsset(WEATHER_ID_KEY);
+
+            if (!mClient.isConnected()) {
+                mClient.blockingConnect(5, TimeUnit.SECONDS);
+            }
+
+            InputStream inputStream =
+                    Wearable.DataApi.getFdForAsset(mClient, weatherAsset).await().getInputStream();
+
+            if (inputStream == null) return null;
+
+            final Bitmap weatherImage = BitmapFactory.decodeStream(inputStream);
+
+            return new DataModel(max, min, weatherImage);
+        }
+
+        @Override
+        protected void onPostExecute(DataModel model) {
+            mCallback.onDataModelReady(model);
+        }
+    }
+
+    interface Callback {
+        void onDataModelReady(DataModel model);
     }
 
 }
