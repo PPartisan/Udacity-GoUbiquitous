@@ -25,7 +25,7 @@ final class DataModel {
     final int max, min;
     final Bitmap image;
 
-    private DataModel(int max, int min, Bitmap image) {
+    DataModel(int max, int min, Bitmap image) {
         this.max = max;
         this.min = min;
         this.image = image;
