@@ -1,3 +1,31 @@
+#Udacity-GoUbiquitous
+
+![Round Ambient Watchface](screenshots/round_amb.png "Round Ambient Watchface")
+![Round Regular Watchface](screenshots/round_reg.png "Round Regular Watchface")
+![Square Ambient Watchface](screenshots/square_amb.png "Square Ambient Watchface")
+![Square Regular Watchface](screenshots/square_reg.png "Square Regular Watchface")
+!["Null Data" Watchface](screenshots/round_no_data.png "No-Data Watchface")
+
+Submission for sixth project on Udacity's Android Developer NanoDegree, "Go Ubiquitous".
+
+###Overview
+
+In accordance with and in addition to the project rubric, this app:
+
+* Offers separate Watch Face styles for square and round smartwatches with ambient and regular modes.
+* Displays the current time with a solid circle, representing the hour hand, and stroked circle, representing minutes. In Ambient mode, the solid circle switch to a double-ringed circle to guard against screen burn in.
+* Displays high and low temperatures for that day.
+* Displays a central graphic indicating the current weather.
+* Shows a special watch face for situations where the wearable cannot connect to the phone, or cannot otherwise retrieve data.
+
+###Usage
+
+Clone and build the app as usual. For the "wearable" module, it will be necessary to edit the configuration such that **Launch Options** is set to **Nothing** rather than **Default Activity**
+
+Create `gradle.properties` file, and add WeatherApiKey in the "MyOpenWeatherMapApiKey" field.
+
+------------------------------------
+
 Advanced Android Sample App
 ===================================
 
